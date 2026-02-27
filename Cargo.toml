@@ -7,7 +7,7 @@ readme = "README.md"
 homepage = "https://github.com/VincentTam/rust-canto"
 repository = "https://github.com/VincentTam/rust-canto"
 description = "Convert Chinese characters to Jyutping (粵拼)"
-keywords = ["cantonese", "chinese", "hanzi", "jyutping", "yale", "nlp"]
+keywords = ["cantonese", "chinese", "hanzi", "jyutping", "yale"]
 categories = ["text-processing"]
 edition = "2021"
 
