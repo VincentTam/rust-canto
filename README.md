@@ -1,7 +1,7 @@
 # rust-canto
 
 A Rust library for segmenting Cantonese text and converting Chinese characters
-to Jyutping (粵拼) romanization. Compiles to WebAssembly for use as a
+to Jyutping (粵拼)/Yale romanization (耶魯拼音). Compiles to WebAssembly for use as a
 [Typst](https://typst.app) plugin.
 
 ## Features
@@ -9,6 +9,7 @@ to Jyutping (粵拼) romanization. Compiles to WebAssembly for use as a
 - **Word segmentation** — splits Cantonese text into natural word units using a
   trie + dynamic programming algorithm
 - **Jyutping annotation** — converts each word to its Jyutping romanization
+- **Yale annotation** — converts each word to its Yale romanization
 - **Mixed input** — handles mixed Chinese/English/punctuation input gracefully
 - **WASM output** — compiles to `.wasm` for use as a Typst plugin via
   [`wasm-minimal-protocol`](https://github.com/astrale-sharp/wasm-minimal-protocol)
@@ -43,21 +44,49 @@ Load the plugin and call `annotate()` with your input text:
 #let canto = plugin("rust_canto.wasm")
 
 #let to-jyutping-words(txt) = {
-  let arr = json(canto.annotate(bytes(txt)))
-  arr.map(p => ("word": p.at(0), "jyutping": p.at(1)))
+  json(canto.annotate(bytes(txt)))
 }
 
 #let data = to-jyutping-words("今日我要上堂")
 ```
 
-The `annotate` function returns a JSON array of `[word, jyutping]` pairs:
+The `annotate` function returns a JSON array of `{word, jyutping, yale}` objects,
+so that my Typst package
+[pycantonese-parser](https://github.com/VincentTam/pycantonese-parser) can
+process it.
 
 ```json
 [
-  ["今日", "gam1 jat6"],
-  ["我",   "ngo5"],
-  ["要",   "jiu3"],
-  ["上堂", "soeng5 tong4"]
+  {
+    word: "今日",
+    jyutping: "gam1 jat6",
+    yale: [
+      "gām",
+      "yaht",
+    ],
+  },
+  {
+    word: "我",
+    jyutping: "ngo5",
+    yale: [
+      "ngóh",
+    ],
+  },
+  {
+    word: "要",
+    jyutping: "jiu3",
+    yale: [
+      "yiu",
+    ],
+  },
+  {
+    word: "上堂",
+    jyutping: "soeng5 tong4",
+    yale: [
+      "séuhng",
+      "tòhng",
+    ],
+  },
 ]
 ```
 
@@ -65,9 +94,39 @@ English words and punctuation are returned with `null` as the Jyutping:
 
 ```json
 [
-  ["今日", "gam1 jat6"],
-  ["chem", null],
-  ["？",   null]
+  {
+    word: "今日",
+    jyutping: "gam1 jat6",
+    yale: [
+      "gām",
+      "yaht",
+    ],
+  },
+  {
+    word: "c",
+    jyutping: none,
+    yale: none,
+  },
+  {
+    word: "h",
+    jyutping: none,
+    yale: none,
+  },
+  {
+    word: "e",
+    jyutping: none,
+    yale: none
+  },
+  {
+    word: "m",
+    jyutping: none,
+    yale: none
+  },
+  {
+    word: "？",
+    jyutping: none,
+    yale: none
+  },
 ]
 ```
 
@@ -75,14 +134,41 @@ English words and punctuation are returned with `null` as the Jyutping:
 
 Text is segmented using a **trie + dynamic programming** approach:
 
-1. A trie is built at startup from the bundled `words.tsv` (103,000+ entries)
-   and `chars.tsv` (34,000+ characters) datasets, derived from
-   [rime-cantonese](https://github.com/rime/rime-cantonese).
-2. For each position in the input, all possible word matches are found by
-   walking the trie left-to-right.
-3. Dynamic programming selects the segmentation that minimises token count,
-   using word frequency from `freq.txt` as a tiebreaker — so `學生` (freq
-   71,278) beats `好學` (freq 2,847) when both produce the same token count.
+### 1. Building the trie
+
+A trie is built at startup from three bundled data files derived from
+[rime-cantonese](https://github.com/rime/rime-cantonese):
+
+- **`chars.tsv`** (34,000+ entries) — single-character readings with optional
+  frequency weights (e.g. `佢 keoi5` and `佢 heoi5 3%`). Each character's
+  readings are inserted in descending weight order so that `readings[0]` always
+  holds the most common pronunciation. Entries with no percentage are treated as
+  the primary reading (weight 100) and take precedence over those with an
+  explicit percentage.
+- **`words.tsv`** (103,000+ entries) — multi-character word readings. These
+  build full paths through the trie and are loaded after `chars.tsv` so that
+  single-character nodes are already in place.
+- **`freq.txt`** (266,000+ entries) — word frequencies used as a tiebreaker
+  during segmentation (see below).
+
+### 2. Segmentation
+
+For each position in the input, all possible word matches are found by walking
+the trie left-to-right from that position. Dynamic programming then selects the
+segmentation that minimises the token count. When two segmentations produce the
+same number of tokens, the one with the higher total word frequency wins — so
+`學生` (freq 71,278) beats `好學` (freq 2,847) when both yield a two-token
+result for `好學生`.
+
+### 3. Romanization
+
+Each segmented token's Jyutping reading is taken directly from the trie.
+Yale romanization is then derived from the Jyutping by converting initials
+(`z`→`j`, `c`→`ch`, `j`→`y`), finals (`eoi`→`eui`, `eo`/`oe`→`eu`, etc.),
+and applying tone diacritics (macron for tone 1, acute for tone 2, grave for
+tone 4, acute for tone 5; tones 3 and 6 are unmarked). Low-register tones
+(4–6) additionally insert `h` after the vowel nucleus and before any stop coda
+(`-p`, `-t`, `-k`, `-m`, `-n`, `-ng`).
 
 ## Data Sources
 

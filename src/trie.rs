@@ -4,6 +4,7 @@ use std::collections::HashMap;
 pub struct TrieNode {
     pub children: HashMap<char, TrieNode>,
     pub readings: Vec<String>,
+    pub char_weights: Vec<u32>,  // parallel to readings, for sorting
     pub freq: i64,
 }
 
@@ -12,6 +13,7 @@ impl TrieNode {
         TrieNode {
             children: HashMap::new(),
             readings: Vec::new(),
+            char_weights: Vec::new(),
             freq: 0,
         }
     }
@@ -28,11 +30,19 @@ impl Trie {
         }
     }
 
-    pub fn insert_char(&mut self, ch: char, reading: &str) {
-        let node = self.root.children.entry(ch).or_insert_with(TrieNode::new);
+    pub fn insert_char(&mut self, ch: char, reading: &str, weight: u32) {
+        let node = self.root.children
+            .entry(ch)
+            .or_insert_with(TrieNode::new);
         let r = reading.to_string();
         if !node.readings.contains(&r) {
-            node.readings.push(r);
+            // insert so that higher weight readings come first
+            let pos = node.char_weights
+                .iter()
+                .position(|&w| w < weight)
+                .unwrap_or(node.readings.len());
+            node.readings.insert(pos, r);
+            node.char_weights.insert(pos, weight);
         }
     }
 
@@ -114,6 +124,7 @@ impl Trie {
             tokens.push(Token {
                 word,
                 reading: reading.clone(),
+                yale: None,  // filled in by annotate() in lib.rs after segmentation
             });
             curr = *prev;
         }
