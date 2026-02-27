@@ -34,10 +34,10 @@ fn build_trie() -> Trie {
     }
 
     for line in WORD_DATA.lines() {
-        let parts: Vec<&str> = line.split('\t').collect();
-        if parts.len() >= 2 {
-            trie.insert_word(parts[0], parts[1]);
-        }
+        let Some((left, right)) = line.split_once('\t') else {
+            continue;
+        };
+        trie.insert_word(left, right);
     }
 
     for line in FREQ_DATA.lines() {
