@@ -71,6 +71,34 @@ impl Trie {
         node.freq = freq;
     }
 
+    /// Like insert_word but allows single-character entries (for lettered dict).
+    pub fn insert_lettered(&mut self, word: &str, reading: &str) {
+        if word.is_empty() {
+            return;
+        }
+        let mut node = &mut self.root;
+        for ch in word.chars() {
+            node = node.children.entry(ch).or_insert_with(TrieNode::new);
+        }
+        let r = reading.to_string();
+        if !node.readings.contains(&r) {
+            node.readings.push(r);
+        }
+    }
+
+    /// DP segmentation for a chunk of non-ASCII text.
+    ///
+    /// dp[i] = (token_count, total_freq) for the best segmentation of the
+    /// first i characters. We minimise token_count; on a tie we maximise
+    /// total_freq so that high-frequency words are preferred.
+    ///
+    /// Example for "好學生":
+    ///   dp[0] = (0, 0)          ← base: empty prefix costs 0 tokens
+    ///   dp[1] = (1, freq(好))   ← "好" is one token
+    ///   dp[2] = (1, freq(好學)) ← "好學" found in trie: still 1 token from dp[0]
+    ///   dp[3] = (2, freq(好學)+freq(生))  ← fallback: "好學"+"生"
+    ///         vs (2, freq(好)+freq(學生)) ← "好"+"學生"; freq(學生)=71278 wins
+    ///   → reconstruct: track[3]=(1,"學生"), track[1]=(0,"好") → ["好","學生"]
     pub fn segment(&self, text: &str) -> Vec<Token> {
         let chars: Vec<char> = text.chars().collect();
         let n = chars.len();
@@ -83,10 +111,15 @@ impl Trie {
         for end in 1..=n {
             // fallback: single character
             if dp[end - 1].0 != usize::MAX {
+                // look up reading for this single char from the trie
+                let single_reading = self.root
+                    .children
+                    .get(&chars[end - 1])
+                    .and_then(|n| n.readings.first().cloned());
                 let cost = (dp[end - 1].0 + 1, dp[end - 1].1);
                 if Self::better(&cost, &dp[end]) {
                     dp[end] = cost;
-                    track[end] = (end - 1, None);
+                    track[end] = (end - 1, single_reading);  // ← was always None before
                 }
             }
 

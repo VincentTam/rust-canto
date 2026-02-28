@@ -1,6 +1,6 @@
 [package]
 name = "rust-canto"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Vincent Tam <https://github.com/VincentTam>"]
 license = "MIT"
 readme = "README.md"

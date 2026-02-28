@@ -12,6 +12,7 @@ use wasm_minimal_protocol::*;
 const CHAR_DATA: &str = include_str!("../data/chars.tsv");
 const WORD_DATA: &str = include_str!("../data/words.tsv");
 const FREQ_DATA: &str = include_str!("../data/freq.txt");
+const LETTERED_DATA: &str = include_str!("../data/lettered.tsv");
 
 initiate_protocol!();
 
@@ -47,6 +48,13 @@ fn build_trie() -> Trie {
                 trie.insert_freq(parts[0], freq);
             }
         }
+    }
+
+    for line in LETTERED_DATA.lines() {
+        let Some((left, right)) = line.split_once('\t') else {
+            continue;
+        };
+        trie.insert_lettered(left, right);
     }
 
     trie
@@ -101,8 +109,17 @@ mod tests {
 
         let cases = vec![
             (
-                "都會大學",
-                vec![("都會大學", Some("dou1 wui6 daai6 hok6"))],
+                "都會大學入面3%人識用AB膠",
+                vec![
+                    ("都會大學", Some("dou1 wui6 daai6 hok6")),
+                    ("入面", Some("jap6 min6")),
+                    ("3", None),
+                    ("%", Some("pat6 sen1")),
+                    ("人", Some("jan4")),
+                    ("識", Some("sik1")),
+                    ("用", Some("jung6")),
+                    ("AB膠", Some("ei1 bi1 gaau1")),
+                ],
             ),
             (
                 "我會番教會",
