@@ -36,11 +36,19 @@ The compiled plugin will be at:
 target/wasm32-unknown-unknown/release/rust_canto.wasm
 ```
 
+It is a standalone binary file that can be copied to your project.
+
 ### In Typst
 
-Load the plugin and call `annotate()` with your input text:
+You can use my Typst package
+[`auto-canto`](https://github.com/VincentTam/auto-canto) to retrieve this
+crate's output conveniently.
+
+If you wish you process this crate's output yourself, you may load the plugin
+and call `annotate()` with your input text:
 
 ```typst
+// replace with the relative path
 #let canto = plugin("rust_canto.wasm")
 
 #let to-jyutping-words(txt) = {
@@ -60,32 +68,22 @@ process it.
   {
     word: "今日",
     jyutping: "gam1 jat6",
-    yale: [
-      "gām",
-      "yaht",
-    ],
+    yale: ["gām", "yaht"],
   },
   {
     word: "我",
     jyutping: "ngo5",
-    yale: [
-      "ngóh",
-    ],
+    yale: ["ngóh"],
   },
   {
     word: "要",
     jyutping: "jiu3",
-    yale: [
-      "yiu",
-    ],
+    yale: ["yiu"],
   },
   {
     word: "上堂",
     jyutping: "soeng5 tong4",
-    yale: [
-      "séuhng",
-      "tòhng",
-    ],
+    yale: ["séuhng","tòhng"],
   },
 ]
 ```
@@ -95,32 +93,24 @@ English words and punctuation are returned with `null` as the Jyutping:
 ```json
 [
   {
-    word: "今日",
-    jyutping: "gam1 jat6",
-    yale: [
-      "gām",
-      "yaht",
-    ],
+    word: "佢",
+    jyutping: "keoi",
+    yale: ["kéuih"],
   },
   {
-    word: "c",
-    jyutping: none,
-    yale: none,
+    word: "有",
+    jyutping: "jau6",
+    yale: ["yauh"],
   },
   {
-    word: "h",
-    jyutping: none,
-    yale: none,
+    word: "chem",
+    jyutping: kem1,
+    yale: ["kēm"],
   },
   {
-    word: "e",
-    jyutping: none,
-    yale: none
-  },
-  {
-    word: "m",
-    jyutping: none,
-    yale: none
+    word: "堂",
+    jyutping: "tong4",
+    yale: ["tòhng"],
   },
   {
     word: "？",
@@ -148,17 +138,43 @@ A trie is built at startup from three bundled data files derived from
 - **`words.tsv`** (103,000+ entries) — multi-character word readings. These
   build full paths through the trie and are loaded after `chars.tsv` so that
   single-character nodes are already in place.
+- **lettered.tsv** (1,000+ entries) – Latin+CJK word readings.  They are loaded after `words.tsv`.
 - **`freq.txt`** (266,000+ entries) — word frequencies used as a tiebreaker
   during segmentation (see below).
 
 ### 2. Segmentation
 
-For each position in the input, all possible word matches are found by walking
-the trie left-to-right from that position. Dynamic programming then selects the
-segmentation that minimises the token count. When two segmentations produce the
-same number of tokens, the one with the higher total word frequency wins — so
-`學生` (freq 71,278) beats `好學` (freq 2,847) when both yield a two-token
-result for `好學生`.
+Input text is tokenised in a single left-to-right pass using dynamic
+programming over the trie. `dp[i]` holds the best `(token_count, total_freq)`
+for the first `i` characters; the goal is to minimise `token_count` and, on a
+tie, maximise `total_freq`. For example, `好學生` can split as `好學 + 生` or
+`好 + 學生`; both yield two tokens, but `學生` (freq 71,278) beats `好學`
+(freq 2,847), so `好 + 學生` wins.
+
+Each character position is resolved by three rules applied in priority order:
+
+**Trie walk.** For every possible start position, the trie is walked
+left-to-right to find all matching words. A match contributes one token and
+carries the word's Jyutping reading and frequency. Mixed Latin+CJK entries such
+as `AB膠` and `做part-time`, as well as hyphenated entries like `chok-cheat`,
+are stored in the trie and matched here.
+
+**Alpha-run fallback.** If the trie finds no reading for a span, the span may
+still be merged into one token if it is a contiguous run of non-CJK
+alphanumeric characters. Hyphens (`-`), underscores (`_`), and apostrophes
+(`'`) are allowed as internal connectors but not at the start or end of the
+span, so `part-time`, `rust_canto`, and `i'm` each become one token while a
+bare `-` remains a single-character token. The resulting token has no Jyutping
+reading. This rule only fires when the trie has no entry for the span, so a
+word like `ge` that appears in the lettered dictionary correctly receives its
+reading `ge3` rather than `None`.
+
+**Single-character fallback.** Any character not covered by the above —
+whitespace, punctuation, symbols — becomes its own token. The trie is still
+consulted for a reading, which is how single-character lettered entries such as
+`%` → `pat6 sen1` are handled. In particular, `%` is never absorbed into an
+alpha run, so `3%` always splits into two tokens `3` and `%`, allowing the
+Cantonese reading of `%` to be displayed independently.
 
 ### 3. Romanization
 
@@ -178,6 +194,8 @@ The bundled dictionary data is derived from
 
 ## Related Projects
 
+- [auto-canto](https://github.com/VincentTam/auto-canto) — the Typst package
+  that processes the output of this crate for automatic Catonese annotation
 - [PyCantonese](https://pycantonese.org) — the Python library that inspired
   this project
 - [to-jyutping](https://github.com/CanCLID/to-jyutping) — to NodeJS package

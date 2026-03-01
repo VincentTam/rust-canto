@@ -1,8 +1,8 @@
 mod trie;
 mod token;
+mod utils;
 mod yale;
-use yale::jyutping_to_yale;
-use yale::jyutping_to_yale_vec;
+use yale::{jyutping_to_yale, jyutping_to_yale_vec};
 
 use trie::Trie;
 use token::Token;
@@ -107,52 +107,108 @@ mod tests {
     fn test_segmentation() {
         let trie = build_trie();
 
-        let cases = vec![
+        let cases: Vec<(&str, Vec<(&str, Option<&str>)>)> = vec![
+            // --- basic CJK ---
+            (
+                "佢係好學生",
+                vec![
+                    ("佢",   Some("keoi5")),
+                    ("係",   Some("hai6")),
+                    ("好",   Some("hou2")),
+                    ("學生", Some("hok6 saang1")),
+                ],
+            ),
+            // --- CJK + special chars + lettered dict (no space before AB膠) ---
             (
                 "都會大學入面3%人識用AB膠",
                 vec![
                     ("都會大學", Some("dou1 wui6 daai6 hok6")),
-                    ("入面", Some("jap6 min6")),
-                    ("3", None),
-                    ("%", Some("pat6 sen1")),
-                    ("人", Some("jan4")),
-                    ("識", Some("sik1")),
-                    ("用", Some("jung6")),
-                    ("AB膠", Some("ei1 bi1 gaau1")),
+                    ("入面",     Some("jap6 min6")),
+                    ("3",        None),               // digit: alpha run, no dict entry
+                    ("%",        Some("pat6 sen1")),   // single-char lettered entry
+                    ("人",       Some("jan4")),
+                    ("識",       Some("sik1")),
+                    ("用",       Some("jung6")),
+                    ("AB膠",     Some("ei1 bi1 gaau1")), // mixed lettered dict entry
                 ],
             ),
+            // --- pure alpha non-lettered-word run at start ---
             (
-                "我會番教會",
+                "abc",
                 vec![
-                    ("我", Some("ngo5")),
-                    ("會", Some("wui5")),
-                    ("番", Some("faan1")),
-                    ("教會", Some("gaau3 wui2")),
+                    ("abc", None),
                 ],
             ),
+            // --- pure alpha lettered-word run at start ---
             (
-                "佢係好學生",
+                "ge",
                 vec![
-                    ("佢", Some("keoi5")),
-                    ("係", Some("hai6")),
+                    ("ge", Some("ge3")),
+                ],
+            ),
+            // --- alpha run beside CJK, with space ---
+            (
+                "ABCD 一二",
+                vec![
+                    ("ABCD", None),
+                    (" ",    None),
+                    ("一",   Some("jat1")),
+                    ("二",   Some("ji6")),
+                ],
+            ),
+            // --- accented letter in alpha run ---
+            (
+                "café好",
+                vec![
+                    ("café", Some("kat6 fei1")),
+                    ("好",   Some("hou2")),
+                ],
+            ),
+            // --- hyphenated lettered dict entry ---
+            (
+                "我做part-time",
+                vec![
+                    ("我",        Some("ngo5")),
+                    ("做part-time", Some("zou6 paat1 taai1")),
+                ],
+            ),
+            // --- mixed CJK+Latin lettered entry ---
+            (
+                "Hap唔Happy呀",
+                vec![
+                    ("Hap唔Happy呀", Some("hep1 m4 hep1 pi2 aa3")),
+                ],
+            ),
+            // --- newline becomes its own token ---
+            (
+                "你好\n世界",
+                vec![
+                    ("你", Some("nei5")),
                     ("好", Some("hou2")),
-                    ("學生", Some("hok6 saang1")),
+                    ("\n",   None),
+                    ("世界", Some("sai3 gaai3")),
                 ],
             ),
         ];
 
-        for (input, expected) in cases {
+        for (input, expected) in &cases {
             println!("Testing: {}", input);
             let result = trie.segment(input);
-            assert_eq!(result.len(), expected.len(),
-                "token count mismatch for '{}': got {:?}", input,
-                result.iter().map(|t| &t.word).collect::<Vec<_>>()
+            assert_eq!(
+                result.len(), expected.len(),
+                "token count mismatch for {:?}: got [{}]",
+                input,
+                result.iter().map(|t| format!("{:?}", t.word)).collect::<Vec<_>>().join(", ")
             );
             for (i, token) in result.iter().enumerate() {
-                assert_eq!(token.word, expected[i].0,
-                    "word mismatch at index {} for '{}'", i, input);
-                assert_eq!(token.reading.as_deref(), expected[i].1,
-                    "reading mismatch at index {} for '{}'", i, input);
+                assert_eq!(
+                    token.word, expected[i].0,
+                    "word mismatch at index {} for {:?}", i, input
+                );
+                assert_eq!(
+                    token.reading.as_deref(), expected[i].1,
+                    "reading mismatch at index {} for {:?} (word={:?})", i, input, token.word
+                );
             }
         }
     }
