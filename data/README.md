@@ -13,4 +13,5 @@ License: CC BY 4.0. A copy is included at `data/LICENSE.txt`.
 | ------------------------------- | ------------------------- | ------------------------- |
 | [`jyut6ping3.chars.dict.yaml`](https://github.com/rime/rime-cantonese/blob/ce0be9e/jyut6ping3.char.dict.yaml) | `chars.tsv` | Characters mapped to Jyutping |
 | [`jyut6ping3.words.dict.yaml`](https://github.com/rime/rime-cantonese/blob/ce0be9e/jyut6ping3.char.dict.yaml) | `words.tsv` | Words mapped to Jyutping |
+| [`jyut6ping3.lettered.dict.yaml`](https://github.com/rime/rime-cantonese/blob/ce0be9e/jyut6ping3.lettered.dict.yaml) | `lettered.tsv` | Mixed Latin+CJK Words mapped to Jyutping |
 | [`essay-cantonese.txt`](https://github.com/rime/rime-cantonese/blob/ce0be9e/essay-cantonese.txt) | `freq.txt` | Word frequency count |
