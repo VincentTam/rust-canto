@@ -1,64 +1,31 @@
 mod trie;
+use trie::Trie;
 mod token;
+use token::Token;
 mod utils;
+use utils::{decompress, build_trie_from_raw};
 mod yale;
 use yale::{jyutping_to_yale, jyutping_to_yale_vec};
 
-use trie::Trie;
-use token::Token;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use wasm_minimal_protocol::*;
 
-const CHAR_DATA: &str = include_str!("../data/chars.tsv");
-const WORD_DATA: &str = include_str!("../data/words.tsv");
-const FREQ_DATA: &str = include_str!("../data/freq.txt");
-const LETTERED_DATA: &str = include_str!("../data/lettered.tsv");
+// Use compressed data
+const CHAR_DATA_GZ: &[u8] = include_bytes!("../data/chars.tsv.gz");
+const WORD_DATA_GZ: &[u8] = include_bytes!("../data/words.tsv.gz");
+const FREQ_DATA_GZ: &[u8] = include_bytes!("../data/freq.txt.gz");
+const LETTERED_DATA_GZ: &[u8] = include_bytes!("../data/lettered.tsv.gz");
 
 initiate_protocol!();
 
-static TRIE: Lazy<Trie> = Lazy::new(|| build_trie());
+static TRIE: LazyLock<Trie> = LazyLock::new(|| {
+    let char_s = decompress(CHAR_DATA_GZ);
+    let word_s = decompress(WORD_DATA_GZ);
+    let freq_s = decompress(FREQ_DATA_GZ);
+    let lett_s = decompress(LETTERED_DATA_GZ);
 
-fn build_trie() -> Trie {
-    let mut trie = Trie::new();
-
-    for line in CHAR_DATA.lines() {
-        let parts: Vec<&str> = line.split('\t').collect();
-        if parts.len() >= 2 {
-            if let Some(ch) = parts[0].chars().next() {
-                // parse "5%" → 5, missing → 100 (highest priority)
-                let weight = parts.get(2)
-                    .map(|s| s.replace('%', "").trim().parse::<u32>().unwrap_or(0))
-                    .unwrap_or(100);
-                trie.insert_char(ch, parts[1], weight);
-            }
-        }
-    }
-
-    for line in WORD_DATA.lines() {
-        let Some((left, right)) = line.split_once('\t') else {
-            continue;
-        };
-        trie.insert_word(left, right);
-    }
-
-    for line in FREQ_DATA.lines() {
-        let parts: Vec<&str> = line.split('\t').collect();
-        if parts.len() >= 2 {
-            if let Ok(freq) = parts[1].parse::<i64>() {
-                trie.insert_freq(parts[0], freq);
-            }
-        }
-    }
-
-    for line in LETTERED_DATA.lines() {
-        let Some((left, right)) = line.split_once('\t') else {
-            continue;
-        };
-        trie.insert_lettered(left, right);
-    }
-
-    trie
-}
+    build_trie_from_raw(&char_s, &word_s, &freq_s, &lett_s)
+});
 
 #[wasm_func]
 pub fn annotate(input: &[u8]) -> Vec<u8> {
@@ -105,8 +72,6 @@ mod tests {
 
     #[test]
     fn test_segmentation() {
-        let trie = build_trie();
-
         let cases: Vec<(&str, Vec<(&str, Option<&str>)>)> = vec![
             // --- basic CJK ---
             (
@@ -123,13 +88,13 @@ mod tests {
                 "都會大學入面3%人識用AB膠",
                 vec![
                     ("都會大學", Some("dou1 wui6 daai6 hok6")),
-                    ("入面",     Some("jap6 min6")),
-                    ("3",        None),               // digit: alpha run, no dict entry
-                    ("%",        Some("pat6 sen1")),   // single-char lettered entry
-                    ("人",       Some("jan4")),
-                    ("識",       Some("sik1")),
-                    ("用",       Some("jung6")),
-                    ("AB膠",     Some("ei1 bi1 gaau1")), // mixed lettered dict entry
+                    ("入面",    Some("jap6 min6")),
+                    ("3",      None),               // digit: alpha run, no dict entry
+                    ("%",      Some("pat6 sen1")),   // single-char lettered entry
+                    ("人",     Some("jan4")),
+                    ("識",     Some("sik1")),
+                    ("用",     Some("jung6")),
+                    ("AB膠",   Some("ei1 bi1 gaau1")), // mixed lettered dict entry
                 ],
             ),
             // --- pure alpha non-lettered-word run at start ---
@@ -168,7 +133,7 @@ mod tests {
             (
                 "我做part-time",
                 vec![
-                    ("我",        Some("ngo5")),
+                    ("我",          Some("ngo5")),
                     ("做part-time", Some("zou6 paat1 taai1")),
                 ],
             ),
@@ -183,9 +148,9 @@ mod tests {
             (
                 "你好\n世界",
                 vec![
-                    ("你", Some("nei5")),
-                    ("好", Some("hou2")),
-                    ("\n",   None),
+                    ("你",  Some("nei5")),
+                    ("好",  Some("hou2")),
+                    ("\n",  None),
                     ("世界", Some("sai3 gaai3")),
                 ],
             ),
@@ -193,7 +158,7 @@ mod tests {
 
         for (input, expected) in &cases {
             println!("Testing: {}", input);
-            let result = trie.segment(input);
+            let result = TRIE.segment(input);
             assert_eq!(
                 result.len(), expected.len(),
                 "token count mismatch for {:?}: got [{}]",

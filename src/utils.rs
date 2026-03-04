@@ -1,3 +1,58 @@
+use flate2::read::GzDecoder;
+use std::io::Read;
+use crate::trie::Trie;
+
+/// Decompresses Gzip bytes into a String
+pub fn decompress(bytes: &[u8]) -> String {
+    let mut decoder = GzDecoder::new(bytes);
+    let mut s = String::new();
+    decoder.read_to_string(&mut s).expect("Failed to decompress embedded data");
+    s
+}
+
+/// Building the Trie from raw string data
+pub fn build_trie_from_raw(chars: &str, words: &str, freq: &str, lettered: &str) -> Trie {
+    let mut trie = Trie::new();
+
+    for line in chars.lines() {
+        let parts: Vec<&str> = line.split('\t').collect();
+        if parts.len() >= 2 {
+            if let Some(ch) = parts[0].chars().next() {
+                // parse "5%" → 5, missing → 100 (highest priority)
+                let weight = parts.get(2)
+                    .map(|s| s.replace('%', "").trim().parse::<u32>().unwrap_or(0))
+                    .unwrap_or(100);
+                trie.insert_char(ch, parts[1], weight);
+            }
+        }
+    }
+
+    for line in words.lines() {
+        let Some((left, right)) = line.split_once('\t') else {
+            continue;
+        };
+        trie.insert_word(left, right);
+    }
+
+    for line in freq.lines() {
+        let parts: Vec<&str> = line.split('\t').collect();
+        if parts.len() >= 2 {
+            if let Ok(freq) = parts[1].parse::<i64>() {
+                trie.insert_freq(parts[0], freq);
+            }
+        }
+    }
+
+    for line in lettered.lines() {
+        let Some((left, right)) = line.split_once('\t') else {
+            continue;
+        };
+        trie.insert_lettered(left, right);
+    }
+
+    trie
+}
+
 /// True for CJK ideographs, including extension blocks needed for
 /// rare Cantonese characters like 𠮩 (U+20BA9) and 𠹌 (U+20E4C).
 pub fn is_cjk(ch: char) -> bool {
