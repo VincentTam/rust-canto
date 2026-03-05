@@ -24,19 +24,6 @@ to Jyutping (粵拼)/Yale romanization (耶魯拼音). Compiles to WebAssembly f
   - Ubuntu/Debian: `sudo apt install clang`
   - macOS: included with Xcode command line tools
 
-### How the build works
-
-The project uses a two-stage build:
-
-1. **`build.rs`** — runs automatically before every `cargo build`. It reads the
-   raw dictionary files (`data/*.tsv`, `data/freq.txt`), builds the trie, and
-   writes the compressed binary `data/trie.dat`. This file is then embedded into
-   the WASM binary via `include_bytes!`. You never need to run this manually.
-
-2. **`dist`** — a separate workspace crate that compiles the library to
-   `wasm32-unknown-unknown` and runs `wasm-opt` to reduce the output size. This
-   is only needed when producing the final Typst plugin.
-
 ### Standard development build
 
 ```sh
@@ -48,22 +35,16 @@ changed.
 
 ### Production build (optimized WASM)
 
+The project comes with a build script.
+
 ```sh
-cargo run -p dist
+chmod +x build.sh
+./build.sh
 ```
 
 This compiles the library to WASM and runs `wasm-opt` with size-reduction flags
 (`-Oz`, `--strip-debug`, `--disable-reference-types`), producing
 `rust_canto.wasm` in the project root, ready for use in Typst.
-
-### Publishing to crates.io
-
-```sh
-cargo publish
-```
-
-`cargo package` triggers `build.rs`, so `data/trie.dat` is generated as part of
-the verification build. No manual pre-build step is required.
 
 ### In Typst
 

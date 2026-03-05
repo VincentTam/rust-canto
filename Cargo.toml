@@ -1,6 +1,3 @@
-[workspace]
-members = ["dist"]
-
 [package]
 name = "rust-canto"
 version = "0.3.2"
