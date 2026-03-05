@@ -13,6 +13,7 @@ description = "Convert Chinese characters to Jyutping (粵拼) / Yale romanizati
 keywords = ["cantonese", "chinese", "hanzi", "jyutping", "yale"]
 categories = ["text-processing"]
 edition = "2024"
+build = "build.rs"
 
 [profile.release]
 opt-level = "z"     # Optimize for size
@@ -24,6 +25,9 @@ strip = true        # Remove symbols and debug info
 [lib]
 name = "rust_canto"
 crate-type = ["cdylib", "rlib"]
+
+[build-dependencies]
+xtask = { path = "./xtask" }
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

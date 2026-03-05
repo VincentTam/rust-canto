@@ -26,23 +26,33 @@ using `wasm-opt`.
 ### Prerequisites
 - [Rust](https://rustup.rs/) (nightly or stable 1.80+)
 - [Binaryen](https://github.com/WebAssembly/binaryen) (for `wasm-opt`)
+- **Clang**: Required to compile the `zstd` compression library.
+  - **Ubuntu/Debian**: `sudo apt install clang`
+  - **macOS**: Included with Xcode command line tools.
 - `wasm32-unknown-unknown` target: `rustup target add wasm32-unknown-unknown`
 
-### Building
-We provide a helper script to automate the build:
+### Standard Development Build
+
+The project uses a `build.rs` script that automatically generates the compressed
+dictionary (`data/trie.dat`) from the raw TSV files. You can build the library
+normally with:
+
 ```sh
-chmod +x build.sh
-./build.sh
+cargo build --release --target wasm32-unknown-unknown
 ```
 
-Alternatively, run the steps manually:
+### Production Build (Optimized WASM)
 
-1. Generate data file: `cargo xtask` (This creates `data/canto_data.dat`)
-1. Build WASM: `cargo build --release --target wasm32-unknown-unknown`
-1. Optimize: `wasm-opt -Oz target/wasm32-unknown-unknown/release/rust_canto.wasm -o rust_canto.wasm`
+To generate the final, optimized Typst plugin, use the custom `xtask` command.
+This will compile the project and run `wasm-opt` with size-reduction flags
+(`-Oz`, `--strip-debug`, etc.):
 
-The output root-level WASM file a standalone binary file that can be copied to
-your project.
+```sh
+cargo xtask dist
+```
+
+This will produce the file rust_canto.wasm in the root directory, ready for use
+in Typst.
 
 ### In Typst
 

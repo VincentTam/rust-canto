@@ -1,18 +1,36 @@
-mod build_trie;
-mod trie;
+use std::env;
+use std::error::Error;
 
-fn main() {
-    build_trie_data().expect("Failed to build trie data");
-}
+fn main() -> Result<(), Box<dyn Error>> {
+    // Get the arguments passed to cargo xtask
+    // e.g., "cargo xtask dist" -> args will contain "dist"
+    let args: Vec<String> = env::args().collect();
+    let command = args.get(1).map(|s| s.as_str());
 
-fn build_trie_data() -> Result<(), Box<dyn std::error::Error>> {
-    let trie = build_trie::build_trie();
-    let bytes = postcard::to_stdvec(&trie)?;
-    println!("Postcard serialized trie size: {}", bytes.len());
+    match command {
+        // Run this to generate trie.dat manually
+        Some("data") => {
+            println!("🛠️ Generating dictionary data...");
+            xtask::build_trie_data()?;
+        }
 
-    let bytes = zstd::encode_all(bytes.as_slice(), 20)?;
-    println!("Compressed trie size: {}", bytes.len());
+        // Run this to do the full WASM build + wasm-opt
+        Some("dist") => {
+            println!("📦 Starting distribution build...");
+            // build_trie_data() is called by build.rs automatically,
+            // but we call it here too just to be safe.
+            xtask::build_trie_data()?;
+            xtask::build_and_optimize()?;
+        }
 
-    std::fs::write("data/trie.dat", bytes)?;
+        // Default: Show help
+        _ => {
+            eprintln!("Usage: cargo xtask [data|dist]");
+            eprintln!("  data: Just generate data/trie.dat");
+            eprintln!("  dist: Build WASM and optimize with wasm-opt");
+            std::process::exit(1);
+        }
+    }
+
     Ok(())
 }
