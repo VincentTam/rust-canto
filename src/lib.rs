@@ -12,7 +12,7 @@ use wasm_minimal_protocol::*;
 
 initiate_protocol!();
 
-const TRIE_DATA: &[u8] = include_bytes!("../data/trie.dat");
+const TRIE_DATA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/trie.dat"));
 static TRIE: LazyLock<Trie> = LazyLock::new(build_trie);
 
 fn build_trie() -> Trie {
