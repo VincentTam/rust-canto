@@ -14,6 +14,16 @@ keywords = ["cantonese", "chinese", "hanzi", "jyutping", "yale"]
 categories = ["text-processing"]
 edition = "2024"
 build = "build.rs"
+include = [
+    "src/**/*.rs",
+    "data/*.tsv",
+    "xtask/**/*.rs",    # Include the xtask source!
+    "xtask/Cargo.toml",
+    "build.rs",
+    "Cargo.toml",
+    "README.md",
+    "LICENSE"
+]
 
 [profile.release]
 opt-level = "z"     # Optimize for size
