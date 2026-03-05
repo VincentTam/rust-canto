@@ -16,43 +16,54 @@ to Jyutping (粵拼)/Yale romanization (耶魯拼音). Compiles to WebAssembly f
 
 ## Development & Building
 
-This package uses a two-stage build process to keep the WebAssembly binary as
-small as possible:
-1. **Data Pre-processing:** Raw dictionaries are compressed into a custom binary
-format (`.dat`) using [Zstandard](https://docs.rs/zstd/latest/zstd/).
-2. **WASM Compilation:** The Rust source is compiled to WASM and then optimized
-using `wasm-opt`.
-
 ### Prerequisites
-- [Rust](https://rustup.rs/) (nightly or stable 1.80+)
-- [Binaryen](https://github.com/WebAssembly/binaryen) (for `wasm-opt`)
-- **Clang**: Required to compile the `zstd` compression library.
-  - **Ubuntu/Debian**: `sudo apt install clang`
-  - **macOS**: Included with Xcode command line tools.
+
+- [Rust](https://rustup.rs/) stable 1.80+
 - `wasm32-unknown-unknown` target: `rustup target add wasm32-unknown-unknown`
+- **Clang**: required to compile the `zstd` compression library
+  - Ubuntu/Debian: `sudo apt install clang`
+  - macOS: included with Xcode command line tools
 
-### Standard Development Build
+### How the build works
 
-The project uses a `build.rs` script that automatically generates the compressed
-dictionary (`data/trie.dat`) from the raw TSV files. You can build the library
-normally with:
+The project uses a two-stage build:
+
+1. **`build.rs`** — runs automatically before every `cargo build`. It reads the
+   raw dictionary files (`data/*.tsv`, `data/freq.txt`), builds the trie, and
+   writes the compressed binary `data/trie.dat`. This file is then embedded into
+   the WASM binary via `include_bytes!`. You never need to run this manually.
+
+2. **`dist`** — a separate workspace crate that compiles the library to
+   `wasm32-unknown-unknown` and runs `wasm-opt` to reduce the output size. This
+   is only needed when producing the final Typst plugin.
+
+### Standard development build
 
 ```sh
 cargo build --release --target wasm32-unknown-unknown
 ```
 
-### Production Build (Optimized WASM)
+`build.rs` regenerates `data/trie.dat` automatically if any dictionary file has
+changed.
 
-To generate the final, optimized Typst plugin, use the custom `xtask` command.
-This will compile the project and run `wasm-opt` with size-reduction flags
-(`-Oz`, `--strip-debug`, etc.):
+### Production build (optimized WASM)
 
 ```sh
-cargo xtask dist
+cargo run -p dist
 ```
 
-This will produce the file rust_canto.wasm in the root directory, ready for use
-in Typst.
+This compiles the library to WASM and runs `wasm-opt` with size-reduction flags
+(`-Oz`, `--strip-debug`, `--disable-reference-types`), producing
+`rust_canto.wasm` in the project root, ready for use in Typst.
+
+### Publishing to crates.io
+
+```sh
+cargo publish
+```
+
+`cargo package` triggers `build.rs`, so `data/trie.dat` is generated as part of
+the verification build. No manual pre-build step is required.
 
 ### In Typst
 

@@ -1,9 +1,9 @@
-use crate::trie::Trie;
+use super::trie::Trie;
 
-const CHAR_DATA: &str = include_str!("../../data/chars.tsv");
-const WORD_DATA: &str = include_str!("../../data/words.tsv");
-const FREQ_DATA: &str = include_str!("../../data/freq.txt");
-const LETTERED_DATA: &str = include_str!("../../data/lettered.tsv");
+const CHAR_DATA: &str = include_str!("../data/chars.tsv");
+const WORD_DATA: &str = include_str!("../data/words.tsv");
+const FREQ_DATA: &str = include_str!("../data/freq.txt");
+const LETTERED_DATA: &str = include_str!("../data/lettered.tsv");
 
 pub fn build_trie() -> Trie {
     let mut trie = Trie::new();

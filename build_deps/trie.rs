@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-
 use serde::Serialize;
 
 #[derive(Serialize, Debug, Clone)]

@@ -1,3 +1,7 @@
+// build.rs
+#[path = "build_deps/mod.rs"]
+mod generate;
+
 fn main() {
     // 1. Tell Cargo to re-run this script if any files in the data folder change.
     // This ensures that if you edit your TSVs, the .dat file is updated.
@@ -8,7 +12,7 @@ fn main() {
 
     // 2. Call the generation logic from your xtask crate.
     // We use the 'xtask' namespace because you added it as a build-dependency.
-    if let Err(e) = xtask::build_trie_data() {
+    if let Err(e) = generate::build_trie_data() {
         // Using eprintln and panic ensures the error is visible in the terminal
         // if the build fails.
         eprintln!("Error: Failed to generate dictionary data: {}", e);
