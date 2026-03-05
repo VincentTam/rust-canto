@@ -14,29 +14,35 @@ to Jyutping (粵拼)/Yale romanization (耶魯拼音). Compiles to WebAssembly f
 - **WASM output** — compiles to `.wasm` for use as a Typst plugin via
   [`wasm-minimal-protocol`](https://github.com/astrale-sharp/wasm-minimal-protocol)
 
-## Usage as a Typst Plugin
+## Development & Building
+
+This package uses a two-stage build process to keep the WebAssembly binary as
+small as possible:
+1. **Data Pre-processing:** Raw dictionaries are compressed into a custom binary
+format (`.dat`) using [Zstandard](https://docs.rs/zstd/latest/zstd/).
+2. **WASM Compilation:** The Rust source is compiled to WASM and then optimized
+using `wasm-opt`.
 
 ### Prerequisites
+- [Rust](https://rustup.rs/) (nightly or stable 1.80+)
+- [Binaryen](https://github.com/WebAssembly/binaryen) (for `wasm-opt`)
+- `wasm32-unknown-unknown` target: `rustup target add wasm32-unknown-unknown`
 
-Install the WebAssembly build target:
-
-```bash
-rustup target add wasm32-unknown-unknown
+### Building
+We provide a helper script to automate the build:
+```sh
+chmod +x build.sh
+./build.sh
 ```
 
-### Build
+Alternatively, run the steps manually:
 
-```bash
-cargo build --release --target wasm32-unknown-unknown
-```
+1. Generate data file: `cargo xtask` (This creates `data/canto_data.dat`)
+1. Build WASM: `cargo build --release --target wasm32-unknown-unknown`
+1. Optimize: `wasm-opt -Oz target/wasm32-unknown-unknown/release/rust_canto.wasm -o rust_canto.wasm`
 
-The compiled plugin will be at:
-
-```
-target/wasm32-unknown-unknown/release/rust_canto.wasm
-```
-
-It is a standalone binary file that can be copied to your project.
+The output root-level WASM file a standalone binary file that can be copied to
+your project.
 
 ### In Typst
 
@@ -47,7 +53,7 @@ crate's output conveniently.
 If you wish you process this crate's output yourself, you may load the plugin
 and call `annotate()` with your input text:
 
-```typst
+```typ
 // replace with the relative path
 #let canto = plugin("rust_canto.wasm")
 
@@ -58,10 +64,9 @@ and call `annotate()` with your input text:
 #let data = to-jyutping-words("今日我要上堂")
 ```
 
-The `annotate` function returns a JSON array of `{word, jyutping, yale}` objects,
-so that my Typst package
-[pycantonese-parser](https://github.com/VincentTam/pycantonese-parser) can
-process it.
+The `annotate` function returns a JSON array of `{word, jyutping, yale}`
+objects, so that my Typst package
+[canto-parser](https://typst.app/universe/package/canto-parser) can process it.
 
 ```json
 [
