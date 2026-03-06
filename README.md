@@ -30,8 +30,10 @@ to Jyutping (粵拼)/Yale romanization (耶魯拼音). Compiles to WebAssembly f
 cargo build --release --target wasm32-unknown-unknown
 ```
 
-`build.rs` regenerates `data/trie.dat` automatically if any dictionary file has
-changed.
+`build.rs` regenerates `OUT_DIR/trie.dat` automatically every time it is run.
+[`OUT_DIR`](https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates)
+is an environment variable representing the output directory.  It is used so
+that Cargo considers the output path to be "stable".
 
 ### Production build (optimized WASM)
 
@@ -145,7 +147,8 @@ A trie is built at startup from three bundled data files derived from
 - **`words.tsv`** (103,000+ entries) — multi-character word readings. These
   build full paths through the trie and are loaded after `chars.tsv` so that
   single-character nodes are already in place.
-- **lettered.tsv** (1,000+ entries) – Latin+CJK word readings.  They are loaded after `words.tsv`.
+- **lettered.tsv** (1,000+ entries) – Latin+CJK word readings.  They are loaded
+after `words.tsv`.
 - **`freq.txt`** (266,000+ entries) — word frequencies used as a tiebreaker
   during segmentation (see below).
 
